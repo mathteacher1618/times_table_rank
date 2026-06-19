@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個位數乘法挑戰與即時排名系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; text-align: center; padding: 15px; margin: 0; }
+        .box { background: #fff; padding: 25px; border-radius: 10px; max-width: 380px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        select, button { width: 100%; padding: 12px; margin: 10px 0; font-size: 1.2rem; border-radius: 5px; box-sizing: border-box; }
+        select { background: #fff; color: #000; border: 1px solid #ccc; height: 50px; }
+        button { background: #3498db; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+        .score-board { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
+        .num-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .key { background: #eef0f2; border: none; padding: 15px; font-size: 1.5rem; font-weight: bold; border-radius: 5px; color: #000; width: 100%; margin: 0; }
+        .key-enter { background: #3498db; color: #fff; }
+        .key-clear { background: #bbb; color: #fff; }
+        .rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 0.95rem; }
+        .rank-table th, .rank-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        .rank-table th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div id="screen1">
+        <h3>學生登錄</h3>
+        <label style="text-align:left; display:block; font-weight:bold;">班別：</label>
+        <select id="sel-class">
+            <option value="1AN">1AN</option><option value="1BR">1BR</option><option value="1CL">1CL</option><option value="1DS">1DS</option><option value="1EL">1EL</option>
+            <option value="2AN">2AN</option><option value="2BR">2BR</option><option value="2CL">2CL</option><option value="2DS">2DS</option><option value="2EL">2EL</option>
+            <option value="3AN">3AN</option><option value="3BR">3BR</option><option value="3CL">3CL</option><option value="3DS">3DS</option><option value="3EL">3EL</option>
+        </select>
+        <label style="text-align:left; display:block; font-weight:bold;">學號：</label>
+        <select id="sel-id">
+            <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option>
+            <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
+            <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option>
+            <option value="31">31</option><option value="32">32</option><option value="33">33</option>
+        </select>
+        <button onclick="goGame()">開始挑戰</button>
+    </div>
+
+    <div id="screen2" style="display:none;">
+        <div id="stu-tag" style="background:#f8f9fa; padding:5px; margin-bottom:10px; font-weight:bold;"></div>
+        <div class="score-board">
+            <div>⏱️ <span id="t-count">120</span>s</div>
+            <div>O: <span id="s-r" style="color:green">0</span> | X: <span id="s-w" style="color:red">0</span></div>
+        </div>
+        <div id="q-text" style="font-size:3.5rem; font-weight:bold; margin:10px 0;">? × ?</div>
+        <input type="number" id="ans-view" style="font-size:2rem; width:120px; text-align:center; padding:5px;" readonly>
+        <div id="msg-text" style="height:25px; margin:5px 0; font-weight:bold;"></div>
+        
+        <div class="num-pad" id="pad">
+            <button class="key" onclick="press('1')">1</button><button class="key" onclick="press('2')">2</button><button class="key" onclick="press('3')">3</button>
+            <button class="key" onclick="press('4')">4</button><button class="key" onclick="press('5')">5</button><button class="key" onclick="press('6')">6</button>
+            <button class="key" onclick="press('7')">7</button><button class="key" onclick="press('8')">8</button><button class="key" onclick="press('9')">9</button>
+            <button class="key key-clear" onclick="press('c')">清除</button><button class="key" onclick="press('0')">0</button><button class="key key-enter" onclick="press('e')">確定</button>
+        </div>
+        
+        <div id="end-zone" style="display:none;">
+            <table class="rank-table">
+                <thead>
+                    <tr><th>排名</th><th>班別/學號</th><th>答對</th><th>正確率</th></tr>
+                </thead>
+                <tbody id="rank-rows">
+                    <tr><td colspan="4">計算排名中...</td></tr>
+                </tbody>
+            </table>
+            <button style="background:green;" onclick="goReset()">重新開始</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 請在下方雙引號內貼上你的 Google Apps Script 網頁應用程式 URL
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbyv7DIlf5KuIFjUBfGR3MezA1x6aUj2219_S4K93BS72xzJyNuRWmYNiUBInS8bO3lfnA/exec";
+
+    var n1=0, n2=0, ans=0, rCount=0, wCount=0, time=120, timer=null, gOver=false, tStart=false;
+    var currentClass = "", currentId = "";
+
+    function goGame() {
+        currentClass = document.getElementById('sel-class').value;
+        currentId = document.getElementById('sel-id').value;
+        document.getElementById('stu-tag').innerText = currentClass + " 班 (" + currentId + " 號)";
+        document.getElementById('screen1').style.display = 'none';
+        document.getElementById('screen2').style.display = 'block';
+        document.getElementById('end-zone').style.display = 'none';
+        rCount=0; wCount=0; time=120; gOver=false; tStart=false;
+        document.getElementById('s-r').innerText = '0';
+        document.getElementById('s-w').innerText = '0';
+        document.getElementById('t-count').innerText = '120';
+        document.getElementById('pad').style.display = 'grid';
+        document.getElementById('msg-text').innerText = '';
+        makeQ();
+    }
+
+    function makeQ() {
+        if(gOver) return;
+        n1 = Math.floor(Math.random() * 9) + 1;
+        n2 = Math.floor(Math.random() * 9) + 1;
+        ans = n1 * n2;
+        document.getElementById('q-text').innerText = n1 + " × " + n2;
+        document.getElementById('ans-view').value = '';
+    }
+
+    function press(k) {
+        if(gOver) return;
+        if(!tStart) { 
+            tStart=true; 
+            timer = setInterval(function(){ 
+                time--; 
+                document.getElementById('t-count').innerText=time; 
+                if(time<=0){ 
+                    clearInterval(timer); 
+                    gOver=true; 
+                    document.getElementById('q-text').innerText='時間到！'; 
+                    document.getElementById('pad').style.display='none'; 
+                    uploadAndShowRank();
+                } 
+            },1000); 
+        }
+        var v = document.getElementById('ans-view');
+        if(k==='c') { v.value=''; }
+        else if(k==='e') {
+            var u = parseInt(v.value); if(isNaN(u)) return;
+            if(u===ans) { rCount++; document.getElementById('s-r').innerText=rCount; document.getElementById('msg-text').style.color='green'; document.getElementById('msg-text').innerText='✔ 正確'; setTimeout(makeQ, 300); }
+            else { wCount++; document.getElementById('s-w').innerText=wCount; document.getElementById('msg-text').style.color='red'; document.getElementById('msg-text').innerText='✘ 答案是 '+ans; setTimeout(makeQ, 800); }
+        } else { if(v.value.length < 2) v.value += k; }
+    }
+    
+    // 上傳成績至 Google Sheets 並取得全球即時排名
+    function uploadAndShowRank() {
+        var acc = (rCount + wCount > 0) ? Math.round(rCount / (rCount + wCount) * 100) : 0;
+        document.getElementById('msg-text').style.color = '#000';
+        document.getElementById('msg-text').innerText = '正在儲存成績並更新排行榜...';
+        document.getElementById('end-zone').style.display = 'block';
+
+        var payload = { className: currentClass, studentId: currentId, correct: rCount, accuracy: acc };
+
+        // 1. POST 成績到試算表
+        fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+        .then(function() {
+            // 2. GET 最新資料生成排名
+            return fetch(GAS_URL);
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(list) {
+            var html = "";
+            for (var i = 0; i < list.length; i++) {
+                // 高亮顯示目前作答學生的名次
+                var highlight = (list[i].className === currentClass && list[i].studentId === currentId) ? "style='background:#fff2cc; font-weight:bold;'" : "";
+                html += "<tr " + highlight + "><td>" + (i + 1) + "</td><td>" + list[i].className + " (" + list[i].studentId + ")</td><td>" + list[i].correct + " 題</td><td>" + list[i].accuracy + "%</td></tr>";
+            }
+            document.getElementById('rank-rows').innerHTML = html;
+            document.getElementById('msg-text').innerText = '本回合得分：答對 ' + rCount + ' 題 (正確率 ' + acc + '%)';
+        })
+        .catch(function(err) {
+            document.getElementById('rank-rows').innerHTML = "<tr><td colspan='4'>排名載入失敗，請檢查網路或 GAS 網址是否正確。</td></tr>";
+        });
+    }
+
+    function goReset() { 
+        document.getElementById('screen2').style.display='none'; 
+        document.getElementById('screen1').style.display='block'; 
+        document.getElementById('msg-text').innerText=''; 
+        document.getElementById('rank-rows').innerHTML = "<tr><td colspan='4'>計算排名中...</td></tr>";
+    }
+</script>
+</body>
+</html>
