@@ -1,171 +1,893 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>個位數乘法挑戰與即時排名系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>個位數乘法挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; text-align: center; padding: 15px; margin: 0; }
-        .box { background: #fff; padding: 25px; border-radius: 10px; max-width: 380px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
-        select, button { width: 100%; padding: 12px; margin: 10px 0; font-size: 1.2rem; border-radius: 5px; box-sizing: border-box; }
-        select { background: #fff; color: #000; border: 1px solid #ccc; height: 50px; }
-        button { background: #3498db; color: #fff; border: none; cursor: pointer; font-weight: bold; }
-        .score-board { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
-        .num-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-        .key { background: #eef0f2; border: none; padding: 15px; font-size: 1.5rem; font-weight: bold; border-radius: 5px; color: #000; width: 100%; margin: 0; }
-        .key-enter { background: #3498db; color: #fff; }
-        .key-clear { background: #bbb; color: #fff; }
-        .rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 0.95rem; }
-        .rank-table th, .rank-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
-        .rank-table th { background-color: #f8f9fa; }
+        /* 防止iPad/觸控裝置點擊放大、選取及捲動問題 */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            box-sizing: border-box;
+        }
+        input, select {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            touch-action: manipulation;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 810px; /* iPad 10th Gen optimal width container */
+            min-height: 100vh;
+            background-color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-y: auto;
+        }
+        @media (min-width: 810px) {
+            .app-container {
+                min-height: 90vh;
+                border-radius: 16px;
+                margin: 20px 0;
+            }
+        }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <div id="screen1">
-        <h3>學生登錄</h3>
-        <label style="text-align:left; display:block; font-weight:bold;">班別：</label>
-        <select id="sel-class">
-            <option value="1AN">1AN</option><option value="1BR">1BR</option><option value="1CL">1CL</option><option value="1DS">1DS</option><option value="1EL">1EL</option>
-            <option value="2AN">2AN</option><option value="2BR">2BR</option><option value="2CL">2CL</option><option value="2DS">2DS</option><option value="2EL">2EL</option>
-            <option value="3AN">3AN</option><option value="3BR">3BR</option><option value="3CL">3CL</option><option value="3DS">3DS</option><option value="3EL">3EL</option>
-        </select>
-        <label style="text-align:left; display:block; font-weight:bold;">學號：</label>
-        <select id="sel-id">
-            <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option>
-            <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
-            <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option>
-            <option value="31">31</option><option value="32">32</option><option value="33">33</option>
-        </select>
-        <button onclick="goGame()">開始挑戰</button>
+<div class="app-container" id="app-container">
+    
+    <!-- 1. 首頁 / 排行榜檢視 (每次遊戲開始前展示) -->
+    <div id="view-home" class="flex flex-col flex-grow p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-blue-600">⚡ 個位數乘法挑戰</h1>
+            <button id="btn-teacher-login" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-lg font-semibold transition">教師專區</button>
+        </div>
+
+        <div class="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+            <p class="text-gray-700 font-medium mb-3">挑戰你的計算極限！120秒內爭取最高正確題數。</p>
+            <button id="btn-start-game" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition active:scale-95">
+                開始挑戰 🚀
+            </button>
+        </div>
+
+        <!-- 分級排行榜區 -->
+        <div class="flex-grow flex flex-col mt-2">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold text-gray-800">🏆 全校排行榜 (每級最高 50 名)</h2>
+                <span class="text-xs text-gray-500">數據保留一個月 (跨裝置同步)</span>
+            </div>
+
+            <!-- 年級切換標籤 -->
+            <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl mb-3 overflow-x-auto" id="grade-tabs">
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-bold rounded-lg bg-white text-blue-600 shadow-sm whitespace-nowrap" data-grade="1">小一</button>
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 whitespace-nowrap" data-grade="2">小二</button>
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 whitespace-nowrap" data-grade="3">小三</button>
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 whitespace-nowrap" data-grade="4">小四</button>
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 whitespace-nowrap" data-grade="5">小五</button>
+                <button class="grade-tab flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 whitespace-nowrap" data-grade="6">小六</button>
+            </div>
+
+            <!-- 排行榜列表 -->
+            <div class="bg-gray-50 border border-gray-200 rounded-xl flex-grow overflow-hidden flex flex-col h-64 md:h-80">
+                <div class="grid grid-cols-12 bg-gray-200 text-gray-700 font-bold text-xs py-2 px-3 text-center">
+                    <span class="col-span-2">排名</span>
+                    <span class="col-span-3">班別學號</span>
+                    <span class="col-span-4 text-left pl-2">名稱</span>
+                    <span class="col-span-3">最佳得分</span>
+                </div>
+                <div id="leaderboard-list" class="overflow-y-auto flex-grow divide-y divide-gray-100 text-sm">
+                    <!-- 內容動態載入 -->
+                    <div class="p-4 text-center text-gray-400">正在同步雲端排行榜...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="screen2" style="display:none;">
-        <div id="stu-tag" style="background:#f8f9fa; padding:5px; margin-bottom:10px; font-weight:bold;"></div>
-        <div class="score-board">
-            <div>⏱️ <span id="t-count">120</span>s</div>
-            <div>O: <span id="s-r" style="color:green">0</span> | X: <span id="s-w" style="color:red">0</span></div>
-        </div>
-        <div id="q-text" style="font-size:3.5rem; font-weight:bold; margin:10px 0;">? × ?</div>
-        <input type="number" id="ans-view" style="font-size:2rem; width:120px; text-align:center; padding:5px;" readonly>
-        <div id="msg-text" style="height:25px; margin:5px 0; font-weight:bold;"></div>
+    <!-- 2. 遊戲進行畫面 -->
+    <div id="view-game" class="hidden flex flex-col flex-grow p-6 justify-between relative overflow-hidden">
         
-        <div class="num-pad" id="pad">
-            <button class="key" onclick="press('1')">1</button><button class="key" onclick="press('2')">2</button><button class="key" onclick="press('3')">3</button>
-            <button class="key" onclick="press('4')">4</button><button class="key" onclick="press('5')">5</button><button class="key" onclick="press('6')">6</button>
-            <button class="key" onclick="press('7')">7</button><button class="key" onclick="press('8')">8</button><button class="key" onclick="press('9')">9</button>
-            <button class="key key-clear" onclick="press('c')">清除</button><button class="key" onclick="press('0')">0</button><button class="key key-enter" onclick="press('e')">確定</button>
+        <!-- 答錯提示彈出視窗 (放大版：1秒自動關閉，暫停計時) -->
+        <div id="modal-error-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-3xl p-8 md:p-10 max-w-lg w-full shadow-2xl text-center border-4 border-red-400 transform transition-all scale-100">
+                <div class="text-red-500 text-6xl mb-3 animate-pulse">❌</div>
+                <h3 class="text-2xl md:text-3xl font-extrabold text-gray-800 mb-3">答錯了！正確算式為：</h3>
+                <p class="text-4xl md:text-6xl font-black text-blue-600 my-6 tracking-wide bg-blue-50 py-4 rounded-2xl border-2 border-blue-200" id="error-popup-content">3 × 4 = 12</p>
+                <p class="text-sm md:text-base text-gray-500 font-semibold">將於 1 秒後繼續 (計時已暫停)...</p>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center z-10">
+            <div class="timer text-xl font-bold text-orange-600 bg-orange-50 px-5 py-2 rounded-full border-2 border-orange-200 shadow-sm flex items-center space-x-1">
+                <span>⏱️</span>
+                <span>時間: <span id="timer-count">120</span>s</span>
+            </div>
+            <!-- 放大答對/答錯文字與數字 -->
+            <div class="text-right flex space-x-4 items-center bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
+                <div class="text-base font-bold text-gray-600">
+                    答對: <span id="correct-score" class="text-2xl font-extrabold text-green-600 ml-1">0</span>
+                </div>
+                <div class="text-base font-bold text-gray-600">
+                    答錯: <span id="wrong-score" class="text-2xl font-extrabold text-red-500 ml-1">0</span>
+                </div>
+            </div>
         </div>
         
-        <div id="end-zone" style="display:none;">
-            <table class="rank-table">
-                <thead>
-                    <tr><th>排名</th><th>班別/學號</th><th>答對</th><th>正確率</th></tr>
-                </thead>
-                <tbody id="rank-rows">
-                    <tr><td colspan="4">計算排名中...</td></tr>
-                </tbody>
-            </table>
-            <button style="background:green;" onclick="goReset()">重新開始</button>
+        <!-- 題目區域：兩側加入連勝慶祝特效，不干擾題目 -->
+        <div class="relative my-auto flex items-center justify-center w-full z-10">
+            <!-- 左側慶祝標籤 -->
+            <div id="combo-badge-left" class="opacity-0 transition-all duration-300 transform -translate-x-4 bg-amber-400 text-amber-950 font-black px-3 py-2 rounded-xl text-sm md:text-base shadow-md border border-amber-300 animate-bounce whitespace-nowrap hidden md:block">
+                🌟 Combo!
+            </div>
+
+            <!-- 主題目 -->
+            <div class="question text-6xl md:text-7xl font-extrabold text-gray-800 text-center tracking-wider px-4" id="question">? × ?</div>
+
+            <!-- 右側慶祝標籤 -->
+            <div id="combo-badge-right" class="opacity-0 transition-all duration-300 transform translate-x-4 bg-amber-400 text-amber-950 font-black px-3 py-2 rounded-xl text-sm md:text-base shadow-md border border-amber-300 animate-bounce whitespace-nowrap">
+                ✨ <span id="combo-count-text">5連勝</span> ✨
+            </div>
+        </div>
+        
+        <div class="mb-4 z-10">
+            <input type="number" id="answer-input" placeholder="答案" readonly class="w-48 text-center text-3xl py-2 mx-auto block border-2 border-gray-300 rounded-xl bg-white shadow-inner focus:outline-none">
+            <div class="msg h-8 mt-2 font-bold text-center text-lg" id="msg"></div>
+        </div>
+        
+        <!-- 虛擬鍵盤 -->
+        <div class="grid grid-cols-3 gap-2.5 max-w-sm mx-auto w-full pb-2" id="keyboard">
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="1">1</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="2">2</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="3">3</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="4">4</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="5">5</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="6">6</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="7">7</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="8">8</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="9">9</button>
+            <button class="key action bg-gray-200 hover:bg-gray-300 active:bg-gray-400 rounded-xl py-4 text-lg font-bold text-gray-700 shadow-sm" data-val="clear">清除</button>
+            <button class="key bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl py-4 text-2xl font-bold text-gray-700 shadow-sm" data-val="0">0</button>
+            <button class="key enter bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-xl py-4 text-lg font-bold text-white shadow-sm" data-val="enter">確定</button>
         </div>
     </div>
+
+    <!-- 3. 結算畫面 (提交成績與返回) -->
+    <div id="view-summary" class="hidden flex flex-col flex-grow p-6 justify-center items-center">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-xl border border-gray-100 text-center">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-2">挑戰結束！ 🎉</h2>
+            
+            <!-- 突出顯示答對題數 -->
+            <div class="my-5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl p-5 shadow-lg border-2 border-blue-300 transform transition">
+                <div class="text-sm font-semibold tracking-wide uppercase opacity-90">你的最終成績</div>
+                <div class="text-5xl font-black my-1" id="summary-score-big">0 <span class="text-2xl font-bold">題</span></div>
+                <div class="text-sm font-medium bg-white/20 rounded-full py-1 px-3 inline-block mt-1" id="summary-accuracy-text">正確率: 0%</div>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-xl mb-6 text-left border border-gray-200">
+                <p class="text-sm font-bold text-gray-700 mb-3 text-center">請輸入身份記錄成績：</p>
+                
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">班別</label>
+                        <select id="input-class" class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-base font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500">
+                            <!-- 動態生成班別 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">學號</label>
+                        <select id="input-number" class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-base font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500">
+                            <!-- 動態生成學號 01-34 -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">名稱 (只接受英文)</label>
+                    <input type="text" id="input-name" placeholder="e.g. Chan Tai Man" autocomplete="off" class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-base text-gray-800 focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <button id="btn-submit-score" class="w-full mt-3 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 rounded-xl shadow transition">
+                    提交成績並儲存
+                </button>
+            </div>
+
+            <div class="flex space-x-3">
+                <button id="btn-play-again" class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 rounded-xl shadow transition">
+                    再玩一次
+                </button>
+                <button id="btn-go-home" class="flex-1 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 font-bold py-3 rounded-xl shadow transition">
+                    返回首頁
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 教師專區密碼與管理 Modal -->
+    <div id="modal-teacher" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">教師管理專區</h3>
+            
+            <div id="teacher-login-box">
+                <p class="text-sm text-gray-600 mb-2">請輸入教師密碼：</p>
+                <input type="password" id="teacher-password-input" class="w-full p-3 border border-gray-300 rounded-xl mb-4 text-center text-lg tracking-widest" placeholder="••••••••">
+                <div class="flex space-x-3">
+                    <button id="teacher-cancel-btn" class="flex-1 bg-gray-200 hover:bg-gray-300 py-2.5 rounded-xl font-semibold text-gray-700">取消</button>
+                    <button id="teacher-verify-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold">登入</button>
+                </div>
+            </div>
+
+            <div id="teacher-panel" class="hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-bold text-gray-700">排行榜與成績管理系統</span>
+                    <button id="teacher-close-panel" class="text-sm text-blue-600 font-semibold hover:underline">關閉面板</button>
+                </div>
+
+                <!-- 匯出成績專區 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3.5 mb-4">
+                    <span class="block text-xs font-bold text-blue-900 mb-1.5">📧 匯出成績報告 (CSV / Google Sheet 格式)</span>
+                    <div class="flex space-x-2">
+                        <input type="email" id="teacher-email-input" placeholder="teacher@school.edu.hk" class="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white">
+                        <button id="btn-export-email" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition whitespace-nowrap">
+                            匯出並發送
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-1">系統將下載 CSV 檔案並自動開啟郵件軟體將數據寄出。</p>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 max-h-52 overflow-y-auto mb-4" id="teacher-records-list">
+                    <!-- 所有紀錄列表供教師刪除或查看 -->
+                </div>
+                <button id="teacher-clear-all" class="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-sm shadow">清除過期或所有排行榜數據</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<script>
-    // ⚠️ 請在下方雙引號內貼上你的 Google Apps Script 網頁應用程式 URL
-    var GAS_URL = "https://script.google.com/macros/s/AKfycbyv7DIlf5KuIFjUBfGR3MezA1x6aUj2219_S4K93BS72xzJyNuRWmYNiUBInS8bO3lfnA/exec";
+<!-- Firebase 雲端跨裝置同步設定 -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    var n1=0, n2=0, ans=0, rCount=0, wCount=0, time=120, timer=null, gOver=false, tStart=false;
-    var currentClass = "", currentId = "";
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'multiplication-challenge-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
-    function goGame() {
-        currentClass = document.getElementById('sel-class').value;
-        currentId = document.getElementById('sel-id').value;
-        document.getElementById('stu-tag').innerText = currentClass + " 班 (" + currentId + " 號)";
-        document.getElementById('screen1').style.display = 'none';
-        document.getElementById('screen2').style.display = 'block';
-        document.getElementById('end-zone').style.display = 'none';
-        rCount=0; wCount=0; time=120; gOver=false; tStart=false;
-        document.getElementById('s-r').innerText = '0';
-        document.getElementById('s-w').innerText = '0';
-        document.getElementById('t-count').innerText = '120';
-        document.getElementById('pad').style.display = 'grid';
-        document.getElementById('msg-text').innerText = '';
-        makeQ();
-    }
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let cloudLeaderboardData = [];
 
-    function makeQ() {
-        if(gOver) return;
-        n1 = Math.floor(Math.random() * 9) + 1;
-        n2 = Math.floor(Math.random() * 9) + 1;
-        ans = n1 * n2;
-        document.getElementById('q-text').innerText = n1 + " × " + n2;
-        document.getElementById('ans-view').value = '';
-    }
+    async function initFirebase() {
+        try {
+            if (Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-    function press(k) {
-        if(gOver) return;
-        if(!tStart) { 
-            tStart=true; 
-            timer = setInterval(function(){ 
-                time--; 
-                document.getElementById('t-count').innerText=time; 
-                if(time<=0){ 
-                    clearInterval(timer); 
-                    gOver=true; 
-                    document.getElementById('q-text').innerText='時間到！'; 
-                    document.getElementById('pad').style.display='none'; 
-                    uploadAndShowRank();
-                } 
-            },1000); 
-        }
-        var v = document.getElementById('ans-view');
-        if(k==='c') { v.value=''; }
-        else if(k==='e') {
-            var u = parseInt(v.value); if(isNaN(u)) return;
-            if(u===ans) { rCount++; document.getElementById('s-r').innerText=rCount; document.getElementById('msg-text').style.color='green'; document.getElementById('msg-text').innerText='✔ 正確'; setTimeout(makeQ, 300); }
-            else { wCount++; document.getElementById('s-w').innerText=wCount; document.getElementById('msg-text').style.color='red'; document.getElementById('msg-text').innerText='✘ 答案是 '+ans; setTimeout(makeQ, 800); }
-        } else { if(v.value.length < 2) v.value += k; }
-    }
-    
-    // 上傳成績至 Google Sheets 並取得全球即時排名
-    function uploadAndShowRank() {
-        var acc = (rCount + wCount > 0) ? Math.round(rCount / (rCount + wCount) * 100) : 0;
-        document.getElementById('msg-text').style.color = '#000';
-        document.getElementById('msg-text').innerText = '正在儲存成績並更新排行榜...';
-        document.getElementById('end-zone').style.display = 'block';
-
-        var payload = { className: currentClass, studentId: currentId, correct: rCount, accuracy: acc };
-
-        // 1. POST 成績到試算表
-        fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(function() {
-            // 2. GET 最新資料生成排名
-            return fetch(GAS_URL);
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(list) {
-            var html = "";
-            for (var i = 0; i < list.length; i++) {
-                // 高亮顯示目前作答學生的名次
-                var highlight = (list[i].className === currentClass && list[i].studentId === currentId) ? "style='background:#fff2cc; font-weight:bold;'" : "";
-                html += "<tr " + highlight + "><td>" + (i + 1) + "</td><td>" + list[i].className + " (" + list[i].studentId + ")</td><td>" + list[i].correct + " 題</td><td>" + list[i].accuracy + "%</td></tr>";
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+                console.log("Firebase initialized successfully, uid:", currentUser?.uid);
+                fetchLeaderboardFromCloud();
             }
-            document.getElementById('rank-rows').innerHTML = html;
-            document.getElementById('msg-text').innerText = '本回合得分：答對 ' + rCount + ' 題 (正確率 ' + acc + '%)';
-        })
-        .catch(function(err) {
-            document.getElementById('rank-rows').innerHTML = "<tr><td colspan='4'>排名載入失敗，請檢查網路或 GAS 網址是否正確。</td></tr>";
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+    }
+
+    // 取得雲端排行榜資料 (路徑: /artifacts/{appId}/public/data/leaderboard)
+    async function fetchLeaderboardFromCloud() {
+        if (!db) return;
+        try {
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+            const snapshot = await getDocs(colRef);
+            let rawData = [];
+            snapshot.forEach(docSnap => {
+                rawData.push({ id: docSnap.id, ...docSnap.data() });
+            });
+
+            // 過濾保留一個月內的數據 (30天)
+            const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            cloudLeaderboardData = rawData.filter(item => (item.timestamp || 0) >= thirtyDaysAgo);
+
+            if (typeof window.renderLeaderboard === 'function') {
+                window.renderLeaderboard(window.currentSelectedGrade || 1);
+            }
+            if (typeof window.renderTeacherRecords === 'function') {
+                window.renderTeacherRecords();
+            }
+        } catch (err) {
+            console.error("Fetch leaderboard error:", err);
+        }
+    }
+
+    // 儲存或更新學生成績到雲端 (每位學生依班別+學號作為唯一身份識別)
+    window.saveScoreToCloud = async function(record) {
+        if (!db) {
+            saveToLocalStorageFallback(record);
+            return;
+        }
+        try {
+            const docId = `${record.className}_${record.studentNo}`;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', docId);
+
+            const existingIndex = cloudLeaderboardData.findIndex(item => item.className === record.className && item.studentNo === record.studentNo);
+            
+            let finalScore = record.score;
+            let finalAccuracy = record.accuracy;
+            let finalTime = record.timestamp;
+
+            if (existingIndex !== -1) {
+                const existing = cloudLeaderboardData[existingIndex];
+                if (existing.score > record.score) {
+                    return;
+                }
+            }
+
+            await setDoc(docRef, {
+                className: record.className,
+                studentNo: record.studentNo,
+                name: record.name,
+                score: finalScore,
+                accuracy: finalAccuracy,
+                grade: record.grade,
+                timestamp: finalTime
+            }, { merge: true });
+
+            await fetchLeaderboardFromCloud();
+        } catch (e) {
+            console.error("Save score error:", e);
+        }
+    };
+
+    window.deleteRecordFromCloud = async function(docId) {
+        if (!db) return;
+        try {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', docId);
+            await deleteDoc(docRef);
+            await fetchLeaderboardFromCloud();
+        } catch (e) {
+            console.error("Delete record error:", e);
+        }
+    };
+
+    function saveToLocalStorageFallback(record) {
+        let local = JSON.parse(localStorage.getItem('local_leaderboard') || '[]');
+        local.push(record);
+        localStorage.setItem('local_leaderboard', JSON.stringify(local));
+    }
+
+    initFirebase();
+    window.cloudLeaderboardDataGetter = () => cloudLeaderboardData;
+    window.refreshCloudLeaderboard = fetchLeaderboardFromCloud;
+</script>
+
+<script>
+    // 遊戲參數與狀態
+    const GAME_DURATION = 120;
+    let num1 = 0, num2 = 0, correctAnswer = 0;
+    let correctCount = 0, wrongCount = 0;
+    let streakCount = 0; // 連續答對次數
+    let timeLeft = GAME_DURATION;
+    let timerInterval = null;
+    let isGameOver = false;
+    let isTimerStarted = false;
+    window.currentSelectedGrade = 1;
+    let isMistapLocked = false; // 800ms防誤觸鎖
+
+    // 錯題複習佇列 (記錄要在 3 題後重複出現的題目)
+    let pendingReviews = [];
+
+    const classesList = [];
+    const gradePrefixes = ['1', '2', '3', '4', '5', '6'];
+    const suffixes = ['AN', 'BR', 'CL', 'DS', 'EL'];
+    gradePrefixes.forEach(g => {
+        suffixes.forEach(s => {
+            classesList.push(g + s);
+        });
+    });
+
+    const studentNumbers = [];
+    for (let i = 1; i <= 34; i++) {
+        studentNumbers.push(i < 10 ? '0' + i : '' + i);
+    }
+
+    // DOM 元素
+    const viewHome = document.getElementById('view-home');
+    const viewGame = document.getElementById('view-game');
+    const viewSummary = document.getElementById('view-summary');
+    const modalTeacher = document.getElementById('modal-teacher');
+    const teacherLoginBox = document.getElementById('teacher-login-box');
+    const teacherPanel = document.getElementById('teacher-panel');
+    const questionEl = document.getElementById('question');
+    const inputEl = document.getElementById('answer-input');
+    const correctScoreEl = document.getElementById('correct-score');
+    const wrongScoreEl = document.getElementById('wrong-score');
+    const timerCountEl = document.getElementById('timer-count');
+    const msgEl = document.getElementById('msg');
+    const keyboardEl = document.getElementById('keyboard');
+    
+    // 初始化下拉式選單
+    function initDropdowns() {
+        const classSelect = document.getElementById('input-class');
+        const numSelect = document.getElementById('input-number');
+        classSelect.innerHTML = '';
+        numSelect.innerHTML = '';
+
+        classesList.forEach(cls => {
+            const opt = document.createElement('option');
+            opt.value = cls;
+            opt.textContent = cls;
+            classSelect.appendChild(opt);
+        });
+
+        studentNumbers.forEach(num => {
+            const opt = document.createElement('option');
+            opt.value = num;
+            opt.textContent = num;
+            numSelect.appendChild(opt);
+        });
+    }
+    initDropdowns();
+
+    // 只接受英文名稱輸入
+    const nameInput = document.getElementById('input-name');
+    nameInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^A-Za-z\s]/g, '');
+    });
+
+    // 視圖切換
+    function showView(viewName) {
+        viewHome.classList.add('hidden');
+        viewGame.classList.add('hidden');
+        viewSummary.classList.add('hidden');
+
+        if (viewName === 'home') {
+            viewHome.classList.remove('hidden');
+            if (typeof window.refreshCloudLeaderboard === 'function') {
+                window.refreshCloudLeaderboard();
+            }
+        } else if (viewName === 'game') {
+            viewGame.classList.remove('hidden');
+        } else if (viewName === 'summary') {
+            viewSummary.classList.remove('hidden');
+        }
+    }
+
+    // 渲染排行榜 (分級計算，每級最高 50 名)
+    window.renderLeaderboard = function(grade) {
+        const listEl = document.getElementById('leaderboard-list');
+        const allData = window.cloudLeaderboardDataGetter ? window.cloudLeaderboardDataGetter() : [];
+
+        const gradeFiltered = allData.filter(item => {
+            const gChar = String(item.className).charAt(0);
+            return parseInt(gChar) === parseInt(grade);
+        });
+
+        gradeFiltered.sort((a, b) => b.score - a.score);
+        const top50 = gradeFiltered.slice(0, 50);
+
+        if (top50.length === 0) {
+            listEl.innerHTML = `<div class="p-6 text-center text-gray-400">尚無小${grade}級挑戰紀錄</div>`;
+            return;
+        }
+
+        let html = '';
+        top50.forEach((item, index) => {
+            let rankBadge = `<span class="font-bold text-gray-700">${index + 1}</span>`;
+            if (index === 0) rankBadge = `<span class="bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full text-xs font-bold">🥇 1</span>`;
+            else if (index === 1) rankBadge = `<span class="bg-gray-300 text-gray-800 px-2 py-0.5 rounded-full text-xs font-bold">🥈 2</span>`;
+            else if (index === 2) rankBadge = `<span class="bg-amber-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">🥉 3</span>`;
+
+            html += `
+                <div class="grid grid-cols-12 py-2.5 px-3 items-center text-center hover:bg-gray-100 transition">
+                    <div class="col-span-2">${rankBadge}</div>
+                    <div class="col-span-3 font-semibold text-gray-800">${item.className} - ${item.studentNo}</div>
+                    <div class="col-span-4 text-left pl-2 truncate text-gray-700">${escapeHtml(item.name || 'Anonymous')}</div>
+                    <div class="col-span-3 font-bold text-blue-600">${item.score} 題</div>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+    };
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    document.querySelectorAll('.grade-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.grade-tab').forEach(b => {
+                b.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+                b.classList.add('text-gray-600', 'font-medium');
+            });
+            const target = e.currentTarget;
+            target.classList.add('bg-white', 'text-blue-600', 'shadow-sm', 'font-bold');
+            target.classList.remove('text-gray-600', 'font-medium');
+            
+            window.currentSelectedGrade = parseInt(target.getAttribute('data-grade'));
+            renderLeaderboard(window.currentSelectedGrade);
+        });
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+        initGame();
+        showView('game');
+    });
+
+    // 教師專區按鈕點擊監聽修復
+    document.getElementById('btn-teacher-login').addEventListener('click', () => {
+        document.getElementById('teacher-password-input').value = '';
+        teacherLoginBox.classList.remove('hidden');
+        teacherPanel.classList.add('hidden');
+        modalTeacher.classList.remove('hidden');
+    });
+
+    function initGame() {
+        clearInterval(timerInterval);
+        correctCount = 0;
+        wrongCount = 0;
+        streakCount = 0;
+        timeLeft = GAME_DURATION;
+        isGameOver = false;
+        isTimerStarted = false;
+        pendingReviews = [];
+        
+        correctScoreEl.textContent = '0';
+        wrongScoreEl.textContent = '0';
+        timerCountEl.textContent = timeLeft;
+        inputEl.value = '';
+        msgEl.textContent = '';
+        
+        generateQuestion();
+    }
+
+    function advancePendingReviews() {
+        pendingReviews.forEach(item => {
+            item.stepsLeft--;
         });
     }
 
-    function goReset() { 
-        document.getElementById('screen2').style.display='none'; 
-        document.getElementById('screen1').style.display='block'; 
-        document.getElementById('msg-text').innerText=''; 
-        document.getElementById('rank-rows').innerHTML = "<tr><td colspan='4'>計算排名中...</td></tr>";
+    function generateQuestion() {
+        if (isGameOver) return;
+
+        // 檢查是否有等待複習的題目 (步數歸零)
+        const dueIndex = pendingReviews.findIndex(item => item.stepsLeft <= 0);
+        if (dueIndex !== -1) {
+            const reviewItem = pendingReviews.splice(dueIndex, 1)[0];
+            num1 = reviewItem.num1;
+            num2 = reviewItem.num2;
+            correctAnswer = reviewItem.correctAnswer;
+        } else {
+            num1 = Math.floor(Math.random() * 9) + 1;
+            num2 = Math.floor(Math.random() * 9) + 1;
+            correctAnswer = num1 * num2;
+        }
+        
+        questionEl.textContent = `${num1} × ${num2}`;
+        inputEl.value = '';
+        msgEl.textContent = '';
     }
+
+    function startTimer() {
+        isTimerStarted = true;
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerCountEl.textContent = timeLeft;
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        isGameOver = true;
+        
+        // 防誤觸 800ms 鎖定
+        isMistapLocked = true;
+        setTimeout(() => {
+            isMistapLocked = false;
+        }, 800);
+
+        const accuracy = correctCount + wrongCount > 0 
+            ? Math.round((correctCount / (correctCount + wrongCount)) * 100) 
+            : 0;
+
+        // 突出顯示答對題數與正確率
+        document.getElementById('summary-score-big').innerHTML = `${correctCount} <span class="text-2xl font-bold">題</span>`;
+        document.getElementById('summary-accuracy-text').textContent = `正確率: ${accuracy}%`;
+
+        showView('summary');
+    }
+
+    // 觸發連勝慶祝特效 (展示在題目兩側，避免擋住題目)
+    function triggerComboEffect(streak) {
+        const badgeLeft = document.getElementById('combo-badge-left');
+        const badgeRight = document.getElementById('combo-badge-right');
+        const countText = document.getElementById('combo-count-text');
+        
+        countText.textContent = `${streak}連勝`;
+        
+        badgeLeft.classList.remove('opacity-0', '-translate-x-4');
+        badgeLeft.classList.add('opacity-100', 'translate-x-0');
+
+        badgeRight.classList.remove('opacity-0', 'translate-x-4');
+        badgeRight.classList.add('opacity-100', 'translate-x-0');
+
+        setTimeout(() => {
+            badgeLeft.classList.remove('opacity-100', 'translate-x-0');
+            badgeLeft.classList.add('opacity-0', '-translate-x-4');
+
+            badgeRight.classList.remove('opacity-100', 'translate-x-0');
+            badgeRight.classList.add('opacity-0', 'translate-x-4');
+        }, 1600);
+    }
+
+    function submitAnswer() {
+        const userAnswer = parseInt(inputEl.value);
+        if (isNaN(userAnswer)) return;
+
+        if (userAnswer === correctAnswer) {
+            correctCount++;
+            streakCount++;
+            correctScoreEl.textContent = correctCount;
+            msgEl.style.color = '#16a34a';
+            msgEl.textContent = '答對了！';
+
+            if (streakCount > 0 && streakCount % 5 === 0) {
+                triggerComboEffect(streakCount);
+            }
+
+            // 推進其他等待複習的題目步數
+            advancePendingReviews();
+
+            setTimeout(generateQuestion, 200);
+        } else {
+            wrongCount++;
+            streakCount = 0; // 重置連勝
+            wrongScoreEl.textContent = wrongCount;
+            msgEl.style.color = '#dc2626';
+            msgEl.textContent = `錯誤！答案是 ${correctAnswer}`;
+
+            // 暫停計時
+            clearInterval(timerInterval);
+
+            // 放大版彈出式窗框顯示算式及正確答案，維持一秒，不計入2分鐘計時
+            const errorModal = document.getElementById('modal-error-popup');
+            const errorContent = document.getElementById('error-popup-content');
+            errorContent.textContent = `${num1} × ${num2} = ${correctAnswer}`;
+            errorModal.classList.remove('hidden');
+
+            // 只在 3 題後再次出現該題目
+            pendingReviews.push({ num1, num2, correctAnswer, stepsLeft: 3 });
+
+            // 答錯也視為完成一題，推進複習計數
+            advancePendingReviews();
+
+            setTimeout(() => {
+                errorModal.classList.add('hidden');
+                if (!isGameOver) {
+                    startTimer();
+                    generateQuestion();
+                }
+            }, 1000);
+        }
+    }
+
+    function handleInput(key) {
+        if (isGameOver) return;
+        if (!isTimerStarted) {
+            startTimer();
+        }
+
+        if (key === 'clear') {
+            inputEl.value = '';
+        } else if (key === 'enter') {
+            submitAnswer();
+        } else {
+            if (inputEl.value.length < 2) {
+                inputEl.value += key;
+            }
+        }
+    }
+
+    keyboardEl.addEventListener('click', function(e) {
+        const target = e.target.closest('.key');
+        if (!target) return;
+        const val = target.getAttribute('data-val');
+        handleInput(val);
+    });
+
+    window.addEventListener('keydown', function(event) {
+        if (isGameOver) {
+            if (event.key === 'Enter' && isMistapLocked) {
+                event.preventDefault();
+            }
+            return;
+        }
+        if (event.key >= '0' && event.key <= '9') {
+            handleInput(event.key);
+        } else if (event.key === 'Backspace' || event.key === 'Delete') {
+            handleInput('clear');
+        } else if (event.key === 'Enter') {
+            handleInput('enter');
+        }
+    });
+
+    document.getElementById('btn-submit-score').addEventListener('click', async () => {
+        if (isMistapLocked) return;
+        const className = document.getElementById('input-class').value;
+        const studentNo = document.getElementById('input-number').value;
+        const name = nameInput.value.trim() || 'Student';
+        const grade = parseInt(className.charAt(0));
+
+        const accuracy = correctCount + wrongCount > 0 
+            ? Math.round((correctCount / (correctCount + wrongCount)) * 100) 
+            : 0;
+
+        const record = {
+            className,
+            studentNo,
+            name,
+            score: correctCount,
+            accuracy,
+            grade,
+            timestamp: Date.now()
+        };
+
+        const btn = document.getElementById('btn-submit-score');
+        btn.textContent = '提交中...';
+        btn.disabled = true;
+
+        if (typeof window.saveScoreToCloud === 'function') {
+            await window.saveScoreToCloud(record);
+        }
+
+        btn.textContent = '提交成功！✅';
+        setTimeout(() => {
+            btn.textContent = '提交成績並儲存';
+            btn.disabled = false;
+            showView('home');
+        }, 1000);
+    });
+
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+        if (isMistapLocked) return;
+        initGame();
+        showView('game');
+    });
+
+    document.getElementById('btn-go-home').addEventListener('click', () => {
+        if (isMistapLocked) return;
+        showView('home');
+    });
+
+    // 匯出 CSV 與郵件發送邏輯
+    document.getElementById('btn-export-email').addEventListener('click', () => {
+        const email = document.getElementById('teacher-email-input').value.trim();
+        if (!email) {
+            alert('請輸入教師電郵地址！');
+            return;
+        }
+
+        const allData = window.cloudLeaderboardDataGetter ? window.cloudLeaderboardDataGetter() : [];
+        if (allData.length === 0) {
+            alert('目前沒有任何成績紀錄可供匯出。');
+            return;
+        }
+
+        // 建立 CSV 內容 (含 UTF-8 BOM 以確保 Excel / Google Sheet 正確顯示中文)
+        let csvContent = "\uFEFF年級,班別,學號,姓名,答對題數,正確率(%),提交日期\n";
+        allData.forEach(item => {
+            const dateStr = new Date(item.timestamp).toLocaleString();
+            csvContent += `小${item.grade},${item.className},${item.studentNo},"${item.name}",${item.score},${item.accuracy}%,${dateStr}\n`;
+        });
+
+        // 觸發 CSV 下載
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `個位數乘法挑戰成績單_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 自動開啟郵件客戶端寄送提示
+        const subject = encodeURIComponent("個位數乘法挑戰 - 學生成績報告 (CSV/Google Sheet)");
+        const body = encodeURIComponent(`親愛的老師：\n\n已為您匯出個位數乘法挑戰學生成績報告！\n請參閱已下載的 CSV 檔案，可直接匯入 Google Sheets 或 Excel 開啟。\n\n匯出時間：${new Date().toLocaleString()}`);
+        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    });
+
+    document.getElementById('teacher-cancel-btn').addEventListener('click', () => {
+        modalTeacher.classList.add('hidden');
+    });
+
+    document.getElementById('teacher-verify-btn').addEventListener('click', () => {
+        const pwd = document.getElementById('teacher-password-input').value;
+        if (pwd === '23202727') {
+            teacherLoginBox.classList.add('hidden');
+            teacherPanel.classList.remove('hidden');
+            renderTeacherRecords();
+        } else {
+            alert('密碼錯誤！');
+        }
+    });
+
+    document.getElementById('teacher-close-panel').addEventListener('click', () => {
+        modalTeacher.classList.add('hidden');
+    });
+
+    window.renderTeacherRecords = function() {
+        const listEl = document.getElementById('teacher-records-list');
+        const allData = window.cloudLeaderboardDataGetter ? window.cloudLeaderboardDataGetter() : [];
+        
+        if (allData.length === 0) {
+            listEl.innerHTML = `<div class="text-center text-gray-400 py-4">目前沒有任何雲端紀錄</div>`;
+            return;
+        }
+
+        let html = '';
+        allData.forEach(item => {
+            const dateStr = new Date(item.timestamp).toLocaleDateString();
+            html += `
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg mb-2 border border-gray-100 text-xs">
+                    <div>
+                        <span class="font-bold text-blue-600">${item.className} - ${item.studentNo}</span> 
+                        <span class="text-gray-700 ml-1">(${escapeHtml(item.name)})</span>
+                        <div class="text-gray-500">得分: <b>${item.score}</b> | 日期: ${dateStr}</div>
+                    </div>
+                    <button onclick="deleteRecord('${item.className}_${item.studentNo}')" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded font-semibold transition">刪除</button>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+    };
+
+    window.deleteRecord = async function(docId) {
+        if (confirm('確定要刪除此學生的排行榜紀錄嗎？')) {
+            if (typeof window.deleteRecordFromCloud === 'function') {
+                await window.deleteRecordFromCloud(docId);
+                renderTeacherRecords();
+            }
+        }
+    };
+
+    document.getElementById('teacher-clear-all').addEventListener('click', async () => {
+        if (confirm('確定要清理所有超過一個月或重置排行榜嗎？')) {
+            const allData = window.cloudLeaderboardDataGetter ? window.cloudLeaderboardDataGetter() : [];
+            for (const item of allData) {
+                const docId = `${item.className}_${item.studentNo}`;
+                if (typeof window.deleteRecordFromCloud === 'function') {
+                    await window.deleteRecordFromCloud(docId);
+                }
+            }
+            renderTeacherRecords();
+        }
+    });
+
+    showView('home');
 </script>
 </body>
 </html>
